@@ -1869,10 +1869,19 @@
     els.calendarDialogStatus.className = 'calendar-status';
   }
 
+  function getAppUrl() {
+    try {
+      return new URL('./', window.location.href).href;
+    } catch (error) {
+      return '';
+    }
+  }
+
   function buildCalendar() {
     const now = new Date();
     const today = dateKey(now);
     const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone || '本地时间';
+    const appUrl = getAppUrl();
     const lines = [
       'BEGIN:VCALENDAR',
       'VERSION:2.0',
@@ -1906,9 +1915,12 @@
         const description = [
           `用量：${med.dose}`,
           med.note ? `备注：${med.note}` : '',
-          '服完后请打开「按时」勾选记录。'
+          '服完后请打开「按时」勾选记录。',
+          appUrl ? `回到「按时」打卡：${appUrl}` : ''
         ].filter(Boolean).join('\n');
-        const alarmDescription = `该服药了：${med.name}（${med.dose}）`;
+        const alarmDescription = `该服药了：${med.name}（${med.dose}）。服后回到「按时」勾选。`;
+        const displayAlarmUid = `${uid}-display-alarm`;
+        const audioAlarmUid = `${uid}-audio-alarm`;
 
         lines.push('BEGIN:VEVENT');
         lines.push(`UID:${uid}`);
@@ -1920,13 +1932,25 @@
           : 'RRULE:FREQ=DAILY');
         lines.push(`SUMMARY:${escapeIcs(summary)}`);
         lines.push(`DESCRIPTION:${escapeIcs(description)}`);
+        if (appUrl) lines.push(`URL:${escapeIcs(appUrl)}`);
         lines.push('STATUS:CONFIRMED');
         lines.push('TRANSP:TRANSPARENT');
         lines.push('SEQUENCE:0');
+        // Standard visible alert: widely supported and, when the phone's
+        // calendar notification sound is enabled, rings/buzzes at the time.
         lines.push('BEGIN:VALARM');
         lines.push('ACTION:DISPLAY');
-        lines.push(`DESCRIPTION:${escapeIcs(alarmDescription)}`);
+        lines.push(`DESCRIPTION:${escapeIcs(`🔔 ${alarmDescription}`)}`);
         lines.push('TRIGGER:-PT0M');
+        lines.push(`X-WR-ALARMUID:${displayAlarmUid}`);
+        lines.push('END:VALARM');
+        // Best-effort audible alarm for clients that support ACTION:AUDIO.
+        // Clients that do not support it ignore this component; the display
+        // alert above remains. The OS still controls silent mode and volume.
+        lines.push('BEGIN:VALARM');
+        lines.push('ACTION:AUDIO');
+        lines.push('TRIGGER:-PT0M');
+        lines.push(`X-WR-ALARMUID:${audioAlarmUid}`);
         lines.push('END:VALARM');
         lines.push('END:VEVENT');
         eventCount += 1;

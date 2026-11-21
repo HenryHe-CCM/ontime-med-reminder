@@ -428,7 +428,7 @@
       <ol class="instruction-list">
         <li><span>1</span><p>点下方按钮，生成 <b>.ics</b> 日历文件。</p></li>
         <li><span>2</span><p>通过系统分享或下载保存文件，再从文件管理器导入日历。</p></li>
-        <li><span>3</span><p>确认日历通知与声音已开启。每次服药后，回到「按时」勾选。</p></li>
+        <li><span>3</span><p>确认日历通知与声音已开启；静音或专注模式会压住铃声。每次服药后，回到「按时」勾选。</p></li>
       </ol>
       <button class="primary-button primary-button--wide" id="downloadCalendarButton" type="button">
         <svg class="icon"><use href="#i-calendar"/></svg>
@@ -440,7 +440,7 @@
           <span class="calendar-delivery__check" aria-hidden="true"><svg class="icon"><use href="#i-check"/></svg></span>
           <div>
             <strong>已生成 <span id="calendarEventCount">0</span> 条每日日程</strong>
-            <small>最后一步：把文件交给系统日历。手机不会自动导入，需要你选择一次。</small>
+            <small>最后一步：把文件交给系统日历。手机不会自动导入，需要你选择一次。<br>备注中已附上回到「按时」的快捷链接。</small>
           </div>
         </div>
         <button class="primary-button primary-button--wide calendar-share-button" id="calendarShareButton" type="button" hidden>
@@ -461,6 +461,7 @@
             <p>下载后在通知栏或「文件管理 → 下载」中打开 .ics，选择「用其他应用打开 → 日历」导入。若没有关联，打开日历 App → 设置 → 导入/导出日程 → 从本地文件导入。</p>
           </div>
           <p class="calendar-import-tip">如果点开只看到日历文本，说明系统把它当成预览了：请返回文件管理器，用「日历」或「其他应用打开」重新导入。</p>
+          <p class="calendar-sound-note"><strong>响铃说明：</strong>文件包含到点通知和音频提醒；最终能否响铃由系统日历的通知声音、静音和专注模式决定，日历文件不能强制覆盖这些设置。</p>
         </div>
       </div>
       <div class="callout">
