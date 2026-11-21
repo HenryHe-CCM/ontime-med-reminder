@@ -2,6 +2,10 @@
 
 一个**手机优先、数据留在本机**的每日服药提醒与打卡应用。
 
+**在线使用：<https://henryhe-ccm.github.io/ontime-med-reminder/>**
+
+GitHub 仓库：<https://github.com/HenryHe-CCM/ontime-med-reminder>
+
 不注册账号、不依赖服务器、不做小程序审核。核心方案是：
 
 > **「按时」负责计划和打卡；系统日历负责真正准点的提醒。**
