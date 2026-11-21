@@ -424,17 +424,45 @@
         </span>
         <span class="calendar-illustration__bell"><svg class="icon"><use href="#i-bell"/></svg></span>
       </div>
-      <p class="calendar-lede">这是目前最可靠的提醒方式：导入一次，手机就会在设定时间像普通日程一样提醒你，包括锁屏时。</p>
+      <p class="calendar-lede">生成一份包含全部药物时间的日历文件，导入手机日历后，就能在锁屏时按普通日程收到提醒。</p>
       <ol class="instruction-list">
-        <li><span>1</span><p>点下方按钮，生成包含全部药物时间的 <b>.ics</b> 日历文件。</p></li>
-        <li><span>2</span><p>在下载或分享面板中，选择用手机日历打开并添加。</p></li>
+        <li><span>1</span><p>点下方按钮，生成 <b>.ics</b> 日历文件。</p></li>
+        <li><span>2</span><p>通过系统分享或下载保存文件，再从文件管理器导入日历。</p></li>
         <li><span>3</span><p>确认日历通知与声音已开启。每次服药后，回到「按时」勾选。</p></li>
       </ol>
       <button class="primary-button primary-button--wide" id="downloadCalendarButton" type="button">
         <svg class="icon"><use href="#i-calendar"/></svg>
-        生成并导入日历
+        生成 .ics 日历文件
       </button>
-      <p class="calendar-status" id="calendarDialogStatus">还没有生成日历文件。</p>
+      <p class="calendar-status" id="calendarDialogStatus" role="status" aria-live="polite">还没有生成日历文件。</p>
+      <div class="calendar-delivery" id="calendarDelivery" hidden>
+        <div class="calendar-delivery__head">
+          <span class="calendar-delivery__check" aria-hidden="true"><svg class="icon"><use href="#i-check"/></svg></span>
+          <div>
+            <strong>已生成 <span id="calendarEventCount">0</span> 条每日日程</strong>
+            <small>最后一步：把文件交给系统日历。手机不会自动导入，需要你选择一次。</small>
+          </div>
+        </div>
+        <button class="primary-button primary-button--wide calendar-share-button" id="calendarShareButton" type="button" hidden>
+          <svg class="icon"><use href="#i-upload"/></svg>
+          分享 / 存储到文件
+        </button>
+        <a class="secondary-button secondary-button--wide calendar-download-link" id="calendarDownloadLink" href="#" download role="button">
+          <svg class="icon" aria-hidden="true"><use href="#i-download"/></svg>
+          下载 .ics 文件
+        </a>
+        <div class="calendar-import-help">
+          <div id="calendarIosHelp">
+            <strong>iPhone / iPad 导入</strong>
+            <p>优先点「分享 / 存储到文件」（如果显示），也可以直接下载。然后在「文件」App → 下载中点按 .ics → 添加全部；分享面板里出现「日历」时可直接选。</p>
+          </div>
+          <div id="calendarAndroidHelp">
+            <strong>Android / 澎湃 OS 导入</strong>
+            <p>下载后在通知栏或「文件管理 → 下载」中打开 .ics，选择「用其他应用打开 → 日历」导入。若没有关联，打开日历 App → 设置 → 导入/导出日程 → 从本地文件导入。</p>
+          </div>
+          <p class="calendar-import-tip">如果点开只看到日历文本，说明系统把它当成预览了：请返回文件管理器，用「日历」或「其他应用打开」重新导入。</p>
+        </div>
+      </div>
       <div class="callout">
         <strong>以后改了药物或时间？</strong>
         <p>重新生成一次，并在日历中删除旧的「按时」日程，避免重复提醒。日历只负责提醒，勾选记录仍以本应用为准。</p>

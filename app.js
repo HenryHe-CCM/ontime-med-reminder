@@ -32,6 +32,7 @@
   let audioContext = null;
   let lastDayKey = '';
   let notificationRequestInFlight = false;
+  let pendingCalendar = null;
   let els = {};
 
   if (document.readyState === 'loading') {
@@ -432,6 +433,12 @@
       calendarDialog: document.getElementById('calendarDialog'),
       downloadCalendarButton: document.getElementById('downloadCalendarButton'),
       calendarDialogStatus: document.getElementById('calendarDialogStatus'),
+      calendarDelivery: document.getElementById('calendarDelivery'),
+      calendarEventCount: document.getElementById('calendarEventCount'),
+      calendarShareButton: document.getElementById('calendarShareButton'),
+      calendarDownloadLink: document.getElementById('calendarDownloadLink'),
+      calendarIosHelp: document.getElementById('calendarIosHelp'),
+      calendarAndroidHelp: document.getElementById('calendarAndroidHelp'),
 
       confirmDialog: document.getElementById('confirmDialog'),
       confirmTitle: document.getElementById('confirmTitle'),
@@ -534,6 +541,9 @@
     els.testNotificationButton.addEventListener('click', testNotification);
     els.settingsCalendarButton.addEventListener('click', openCalendarDialog);
     els.downloadCalendarButton.addEventListener('click', downloadCalendar);
+    els.calendarShareButton.addEventListener('click', shareCalendarFile);
+    els.calendarDownloadLink.addEventListener('click', handleCalendarDownload);
+    els.calendarDialog.addEventListener('close', resetCalendarDelivery);
     els.exportBackupButton.addEventListener('click', exportBackup);
     els.importBackupButton.addEventListener('click', () => els.importFile.click());
     els.importFile.addEventListener('change', handleImportFile);
@@ -1833,6 +1843,8 @@
       showToast('先添加并启用一种药物，再生成日历提醒。');
       return;
     }
+    resetCalendarDelivery();
+    configureCalendarPlatformHelp();
     updateCalendarDialogStatus();
     showDialog(els.calendarDialog);
   }
@@ -1963,8 +1975,39 @@
     return result + current;
   }
 
-  async function downloadCalendar() {
-    els.downloadCalendarButton.disabled = true;
+  function configureCalendarPlatformHelp() {
+    if (!els.calendarIosHelp || !els.calendarAndroidHelp) return;
+    const ua = navigator.userAgent || '';
+    const isiOS = /iPhone|iPad|iPod/.test(ua)
+      || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+    const isAndroid = /Android/i.test(ua);
+    els.calendarIosHelp.hidden = isAndroid && !isiOS;
+    els.calendarAndroidHelp.hidden = isiOS && !isAndroid;
+  }
+
+  function setCalendarGenerateButtonLabel(label) {
+    els.downloadCalendarButton.innerHTML = `<svg class="icon" aria-hidden="true"><use href="#i-calendar"/></svg>${escapeHTML(label)}`;
+  }
+
+  function resetCalendarDelivery() {
+    if (pendingCalendar && pendingCalendar.url) {
+      URL.revokeObjectURL(pendingCalendar.url);
+    }
+    pendingCalendar = null;
+    if (!els.calendarDelivery) return;
+    els.calendarDelivery.hidden = true;
+    els.calendarShareButton.hidden = true;
+    els.calendarShareButton.disabled = false;
+    els.calendarDownloadLink.removeAttribute('href');
+    els.calendarDownloadLink.removeAttribute('download');
+    els.calendarDownloadLink.removeAttribute('type');
+    els.calendarDownloadLink.classList.remove('is-primary');
+    els.calendarEventCount.textContent = '0';
+    setCalendarGenerateButtonLabel('生成 .ics 日历文件');
+  }
+
+  function downloadCalendar() {
+    resetCalendarDelivery();
     try {
       const { content, eventCount } = buildCalendar();
       if (!eventCount) {
@@ -1972,76 +2015,98 @@
         return;
       }
 
-      const filename = `按时-服药提醒-${todayKey()}.ics`;
-      let delivered = 'downloaded';
-      let mimeFile = null;
-
+      // ASCII filename and the bare text/calendar MIME type are deliberately
+      // conservative: Chinese filenames or "text/calendar;charset=..." can make
+      // some iOS/Android calendar handlers refuse to associate the .ics file.
+      const filename = `ontime-medication-${todayKey()}.ics`;
+      const blob = new Blob([content], { type: 'text/calendar' });
+      const url = URL.createObjectURL(blob);
+      let file = null;
       try {
-        mimeFile = new File([content], filename, { type: 'text/calendar;charset=utf-8' });
+        file = new File([content], filename, { type: 'text/calendar' });
       } catch (error) {
-        mimeFile = null;
+        file = null;
       }
 
-      const mobileLike = navigator.maxTouchPoints > 0 || /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-      if (mimeFile && mobileLike && typeof navigator.share === 'function' && typeof navigator.canShare === 'function') {
-        let canShare = false;
-        try {
-          canShare = navigator.canShare({ files: [mimeFile] });
-        } catch (error) {
-          canShare = false;
-        }
-        if (canShare) {
-          try {
-            await navigator.share({
-              files: [mimeFile],
-              title: '按时 · 服药提醒',
-              text: '导入手机日历后，可在锁屏时收到服药提醒。'
-            });
-            delivered = 'shared';
-          } catch (error) {
-            if (error && error.name === 'AbortError') {
-              updateCalendarDialogStatus('已取消分享，可以再试一次。');
-              return;
-            }
-            delivered = 'downloaded';
-          }
-        }
-      }
+      pendingCalendar = { content, file, url, filename, eventCount };
+      els.calendarDownloadLink.href = url;
+      els.calendarDownloadLink.download = filename;
+      els.calendarDownloadLink.type = 'text/calendar';
+      els.calendarEventCount.textContent = String(eventCount);
+      const shareAvailable = typeof navigator.share === 'function';
+      els.calendarShareButton.hidden = !shareAvailable;
+      els.calendarDownloadLink.classList.toggle('is-primary', !shareAvailable);
+      els.calendarDelivery.hidden = false;
+      setCalendarGenerateButtonLabel('重新生成日历文件');
+      updateCalendarDialogStatus(`已生成 ${eventCount} 条每日日程。请选择分享或下载，然后导入手机日历。`, 'is-ok');
 
-      if (delivered === 'downloaded') {
-        downloadBlob(content, filename, 'text/calendar;charset=utf-8');
-      }
-
-      state.settings.lastCalendarExport = new Date().toISOString();
-      state.settings.calendarDirty = false;
-      state.settings.calendarHintDismissed = true;
-      persistState();
-      updateReminderHint();
-      updateSettingsMeta();
-      updateCalendarDialogStatus(
-        delivered === 'shared'
-          ? '已打开分享面板。请在系统日历中确认添加并开启提醒。'
-          : '日历文件已生成。请在下载项中打开并添加到系统日历。',
-        'is-ok'
-      );
-
-      const wasSettingsOpen = els.settingsDialog.open;
-      closeDialog(els.calendarDialog);
-      if (wasSettingsOpen) closeDialog(els.settingsDialog);
       window.setTimeout(() => {
-        showToast(
-          delivered === 'shared'
-            ? '请在分享面板中把日历文件添加到系统日历。'
-            : '日历文件已生成，请在下载项中打开并添加到系统日历。',
-          { duration: 6500 }
-        );
-      }, 180);
+        els.calendarDelivery.scrollIntoView({
+          block: 'nearest',
+          behavior: prefersReducedMotion() ? 'auto' : 'smooth'
+        });
+      }, 100);
     } catch (error) {
       console.warn('按时：生成日历时出错。', error);
       updateCalendarDialogStatus('生成失败，请重试。如果问题持续，可以导出备份后换一个浏览器。', 'is-error');
-    } finally {
-      els.downloadCalendarButton.disabled = false;
     }
+  }
+
+  function handleCalendarDownload() {
+    if (!pendingCalendar) return;
+    markCalendarExported();
+    updateCalendarDialogStatus(
+      '已开始下载。请按下面的步骤，在文件管理器或「文件」App 中打开 .ics，再导入日历。',
+      'is-ok'
+    );
+  }
+
+  async function shareCalendarFile() {
+    const pending = pendingCalendar;
+    if (!pending) {
+      updateCalendarDialogStatus('请先生成日历文件。', 'is-error');
+      return;
+    }
+    if (!pending.file || typeof navigator.share !== 'function') {
+      updateCalendarDialogStatus('当前浏览器不支持文件分享，请使用下面的「下载 .ics 文件」。', 'is-error');
+      return;
+    }
+
+    els.calendarShareButton.disabled = true;
+    try {
+      // Do not gate this behind navigator.canShare(): Safari on iOS is known to
+      // report false for valid files even though the native share sheet works.
+      await navigator.share({
+        files: [pending.file],
+        title: '按时 · 服药提醒'
+      });
+      markCalendarExported();
+      updateCalendarDialogStatus(
+        '已打开系统分享面板。若其中没有「日历」，请选择「存储到文件」，再从「文件」App 中打开 .ics。',
+        'is-ok'
+      );
+    } catch (error) {
+      if (error && error.name === 'AbortError') {
+        updateCalendarDialogStatus('已取消分享。你仍可以使用下面的「下载 .ics 文件」。');
+      } else {
+        console.warn('按时：系统文件分享失败。', error);
+        updateCalendarDialogStatus(
+          '系统分享没有接受这个文件，请使用下面的「下载 .ics 文件」，再从文件管理器导入日历。',
+          'is-error'
+        );
+      }
+    } finally {
+      els.calendarShareButton.disabled = false;
+    }
+  }
+
+  function markCalendarExported() {
+    state.settings.lastCalendarExport = new Date().toISOString();
+    state.settings.calendarDirty = false;
+    state.settings.calendarHintDismissed = true;
+    persistState();
+    updateReminderHint();
+    updateSettingsMeta();
   }
 
   function downloadBlob(content, filename, mimeType) {
